@@ -1,7 +1,7 @@
 #include <WiFi.h>
 #include <WebServer.h>
 #include "config.h"
-#include "web_page.h"
+#include "web_content.h"
 
 // Global variables
 int pirState = LOW;
