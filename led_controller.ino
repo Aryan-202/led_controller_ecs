@@ -2,6 +2,7 @@
 #include <WebServer.h>
 #include "config.h"
 #include "web_content.h"
+#include "voice_assistant.h"
 
 // Global variables
 int pirState = LOW;
@@ -11,6 +12,9 @@ bool ledManualState = false;
 
 // Web server on port 80
 WebServer server(80);
+
+// Voice assistant
+VoiceAssistant assistant(GEMINI_API_KEY, GEMINI_URL);
 
 void setup() {
   Serial.begin(115200);
@@ -34,6 +38,8 @@ void setup() {
   server.on("/led", handleLED);
   server.on("/mode", handleMode);
   server.on("/status", handleStatus);
+  server.on("/voice", handleVoiceCommand); // New voice command route
+  
   server.begin();
   Serial.println("HTTP server started");
 
@@ -111,4 +117,47 @@ void handleStatus() {
   json += ",\"mode\":" + String(manualControl ? "\"manual\"" : "\"auto\"");
   json += "}";
   server.send(200, "application/json", json);
+}
+
+// New voice command handler
+void handleVoiceCommand() {
+  if (server.hasArg("command")) {
+    String command = server.arg("command");
+    Serial.println("Voice command received: " + command);
+    
+    String response = assistant.processVoiceCommand(command);
+    Serial.println("Assistant response: " + response);
+    
+    // Execute the command
+    if (response == "LIGHT_ON") {
+      digitalWrite(ledPin, HIGH);
+      ledManualState = true;
+      server.send(200, "application/json", "{\"status\":\"success\", \"message\":\"Light turned on\", \"action\":\"light_on\"}");
+    }
+    else if (response == "LIGHT_OFF") {
+      digitalWrite(ledPin, LOW);
+      ledManualState = false;
+      server.send(200, "application/json", "{\"status\":\"success\", \"message\":\"Light turned off\", \"action\":\"light_off\"}");
+    }
+    else if (response == "MODE_AUTO") {
+      manualControl = false;
+      server.send(200, "application/json", "{\"status\":\"success\", \"message\":\"Switched to auto mode\", \"action\":\"mode_auto\"}");
+    }
+    else if (response == "MODE_MANUAL") {
+      manualControl = true;
+      server.send(200, "application/json", "{\"status\":\"success\", \"message\":\"Switched to manual mode\", \"action\":\"mode_manual\"}");
+    }
+    else if (response == "GET_STATUS") {
+      String status = digitalRead(ledPin) ? "ON" : "OFF";
+      String mode = manualControl ? "manual" : "auto";
+      String motion = digitalRead(pirPin) ? "detected" : "no motion";
+      server.send(200, "application/json", 
+        "{\"status\":\"success\", \"message\":\"Light is " + status + ", Mode: " + mode + ", Motion: " + motion + "\", \"action\":\"status\"}");
+    }
+    else {
+      server.send(200, "application/json", "{\"status\":\"error\", \"message\":\"Command not recognized: " + response + "\"}");
+    }
+  } else {
+    server.send(400, "application/json", "{\"status\":\"error\", \"message\":\"No command provided\"}");
+  }
 }

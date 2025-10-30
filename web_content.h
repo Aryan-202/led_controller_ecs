@@ -379,6 +379,27 @@ const char* htmlPage = R"rawliteral(
                 </div>
             </div>
             <div id="home" class="tab-content active">
+            <!-- Add this to your existing HTML in the home tab -->
+<div class="card">
+    <div class="card-header">
+        <h3>Voice Assistant</h3>
+        <span><i class="fas fa-microphone"></i> Powered by Ollama</span>
+    </div>
+    <div style="padding: 20px;">
+        <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+            <input type="text" id="voice-command" placeholder="Type your voice command..." style="flex: 1; padding: 12px; border: 1px solid #ddd; border-radius: 8px;">
+            <button id="send-voice-command" style="padding: 12px 20px; background-color: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer;">
+                <i class="fas fa-paper-plane"></i> Send
+            </button>
+        </div>
+        <div id="voice-response" style="padding: 15px; background-color: var(--secondary); border-radius: 8px; min-height: 50px; font-size: 0.9rem;">
+            Voice responses will appear here...
+        </div>
+        <div style="margin-top: 15px; font-size: 0.8rem; color: var(--text-light);">
+            <p><strong>Try saying:</strong> "turn off light", "switch to auto mode", "what's the status"</p>
+        </div>
+    </div>
+</div>
                 <div class="card">
                     <div class="card-header">
                         <h3>System Status</h3>
@@ -498,6 +519,38 @@ const char* htmlPage = R"rawliteral(
     <script>
         let updateCounter = 0;
         let currentMode = 'auto';
+
+        // Voice command handling
+document.getElementById('send-voice-command').addEventListener('click', function() {
+    const command = document.getElementById('voice-command').value;
+    if (command.trim() === '') return;
+
+    const responseElement = document.getElementById('voice-response');
+    responseElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+
+    fetch('/voice?command=' + encodeURIComponent(command))
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                responseElement.innerHTML = '<span style="color: var(--success)"><i class="fas fa-check-circle"></i> ' + data.message + '</span>';
+                // Update the UI to reflect changes
+                setTimeout(updateStatus, 500);
+            } else {
+                responseElement.innerHTML = '<span style="color: var(--danger)"><i class="fas fa-exclamation-circle"></i> ' + data.message + '</span>';
+            }
+        })
+        .catch(error => {
+            console.error('Voice command error:', error);
+            responseElement.innerHTML = '<span style="color: var(--danger)"><i class="fas fa-exclamation-circle"></i> Error sending command</span>';
+        });
+});
+
+// Allow pressing Enter to send command
+document.getElementById('voice-command').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        document.getElementById('send-voice-command').click();
+    }
+});
 
         // Tab Navigation
         document.querySelectorAll('.nav-link').forEach(link => {
